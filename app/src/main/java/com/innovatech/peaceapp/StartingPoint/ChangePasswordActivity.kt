@@ -129,9 +129,8 @@ class ChangePasswordActivity : AppCompatActivity() {
                                 userProfile.lastname,
                                 userProfile.phonenumber,
                                 userProfile.email,
-                                userProfile.password,
-                                userProfile.user_id,
-                                userProfile.profile_image
+                                userProfile.userId,
+                                userProfile.profileImage
                             )
                         }
                     }

@@ -128,19 +128,21 @@ class ListReportsActivity : AppCompatActivity() {
                 if(reports != null) {
                     for(report in reports) {
 
-                        if(report.image == null) report.image = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
+                        if(report.imageUrl == null) report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
 
                         listReports.add(
                             Report(
                                 report.id,
                                 report.createdAt,
                                 report.updatedAt,
-                                report.idUser,
-                                report.detail,
+                                report.userId,
+                                report.description,
                                 report.title,
                                 report.type,
-                                report.image,
-                                report.address
+                                report.imageUrl,
+                                report.location,
+                                report.latitude,
+                                report.longitude
                             )
                         )
                     }
@@ -168,19 +170,21 @@ class ListReportsActivity : AppCompatActivity() {
                 if(reports != null) {
                     for(report in reports) {
 
-                        if(report.image == null) report.image = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
+                        if(report.imageUrl == null) report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
 
                         listReports.add(
                             Report(
                                 report.id,
                                 report.createdAt,
                                 report.updatedAt,
-                                report.idUser,
-                                report.detail,
+                                report.userId,
+                                report.description,
                                 report.title,
                                 report.type,
-                                report.image,
-                                report.address
+                                report.imageUrl,
+                                report.location,
+                                report.latitude,
+                                report.longitude
                             )
                         )
                     }

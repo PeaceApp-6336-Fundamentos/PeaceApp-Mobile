@@ -28,9 +28,9 @@ class ReportViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
     fun render(reportModel: Report) {
         reportTitle.text = reportModel.title
-        reportDate.text = reportModel.detail
+        reportDate.text = reportModel.description
         reportLocation.text = reportModel.type
-        Picasso.get().load(reportModel.image)
+        Picasso.get().load(reportModel.imageUrl)
             .resize(300, 300)
             .centerCrop().into(reportImg)
     }

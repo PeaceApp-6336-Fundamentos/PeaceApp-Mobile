@@ -6,10 +6,12 @@ data class Report(
     var id: Int,
     var createdAt: String,
     var updatedAt: String,
-    var idUser: Int,
-    var detail: String,
+    var userId: Int,
+    var description: String,
     var title: String,
     var type: String,
-    var image: String?,
-    var address: String
+    var imageUrl: String?,
+    var location: String,
+    val latitude: String,
+    val longitude: String
 ) : Serializable

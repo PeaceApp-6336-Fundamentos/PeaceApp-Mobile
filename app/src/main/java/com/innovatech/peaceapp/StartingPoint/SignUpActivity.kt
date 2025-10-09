@@ -150,7 +150,6 @@ class SignUpActivity : AppCompatActivity() {
             etLastName.text.toString(),
             etPhone.text.toString(),
             edtEmail.text.toString(),
-            edtPassword.text.toString(),
             user_id.toString(),
             "https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default" +
                     "-avatar-icon-of-social-media-user-vector.jpg", // default user image
@@ -165,7 +164,7 @@ class SignUpActivity : AppCompatActivity() {
 
                         Log.i("UserInSignUp", userProfile.id.toString()+ " "+userProfile.name + " "
                                 + userProfile.lastname + " " + userProfile.email + " " + userProfile.phonenumber + " " +
-                                userProfile.password + " " + userProfile.user_id + " " + userProfile.profile_image)
+                                 userProfile.userId + " " + userProfile.profileImage)
 
 
                         showCorrectSignUpDialog(token)

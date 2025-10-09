@@ -14,40 +14,36 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.cloudinary.Cloudinary
+import com.cloudinary.utils.ObjectUtils
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.innovatech.peaceapp.DB.AppDatabase
+import com.innovatech.peaceapp.DB.Entities.LocationModel
 import com.innovatech.peaceapp.Map.Beans.Report
 import com.innovatech.peaceapp.Map.Beans.ReportSchema
 import com.innovatech.peaceapp.Map.Models.RetrofitClient
 import com.innovatech.peaceapp.R
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import java.io.File
-import java.io.FileOutputStream
-import com.cloudinary.Cloudinary
-import com.cloudinary.utils.ObjectUtils;
-import com.innovatech.peaceapp.DB.AppDatabase
-import com.innovatech.peaceapp.DB.Entities.LocationModel
 import com.innovatech.peaceapp.ShareLocation.ContactsListActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.io.File
+import java.io.FileOutputStream
 
 class NewReportActivity : AppCompatActivity() {
-    lateinit var token: String
+
+    private lateinit var token: String
     private lateinit var txtTypeReport: TextView
     private lateinit var txtLocation: TextView
     private lateinit var edtTitle: EditText
@@ -58,21 +54,23 @@ class NewReportActivity : AppCompatActivity() {
     private lateinit var btnCancel: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var viewOverlay: View
+    private lateinit var cloudinary: Cloudinary
+    private lateinit var imgBitmap: Bitmap
+    private var userId: Int = 0
+
     private val REQUEST_CODE_PERMISSIONS = 101
+    private val REQUEST_CODE_IMAGE_PICKER = 102
     private val REQUIRED_PERMISSIONS = arrayOf(
         android.Manifest.permission.CAMERA,
         android.Manifest.permission.READ_EXTERNAL_STORAGE,
         android.Manifest.permission.WRITE_EXTERNAL_STORAGE
     )
-    private val REQUEST_CODE_IMAGE_PICKER = 102
-    private lateinit var cloudinary: Cloudinary
-    private lateinit var imgBitmap: Bitmap
-    private var userId: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_new_report)
+
         txtTypeReport = findViewById(R.id.txtTypeReport)
         txtLocation = findViewById(R.id.txtLocation)
         edtTitle = findViewById(R.id.edtTitle)
@@ -81,18 +79,24 @@ class NewReportActivity : AppCompatActivity() {
         imgEvidence = findViewById(R.id.imgEvidence)
         btnSave = findViewById(R.id.btnSave)
         btnCancel = findViewById(R.id.btnCancel)
+        progressBar = findViewById(R.id.progressBar)
+        viewOverlay = findViewById(R.id.loadingOverlay)
 
-        // recovering the current location coordinates
-        val typeReport = intent.getStringExtra("type")
+        // Recuperar datos guardados
+        val typeReport = intent.getStringExtra("type") ?: "OTHER"
         val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
         val latitude = sharedPref.getString("latitude", "0.0")!!.toDouble()
         val longitude = sharedPref.getString("longitude", "0.0")!!.toDouble()
         val currentLocation = sharedPref.getString("currentLocation", "No location found")!!
         userId = sharedPref.getInt("userId", 0)
+        token = intent.getStringExtra("token")!!
 
         txtLocation.hint = currentLocation
         txtTypeReport.text = typeReport
-        token = intent.getStringExtra("token")!!
+
+        configCloudinary()
+        saveImageEvidence()
+        navigationMenu()
 
         btnCancel.setOnClickListener {
             val intent = Intent(this, ListReportsActivity::class.java)
@@ -101,31 +105,23 @@ class NewReportActivity : AppCompatActivity() {
         }
 
         btnSave.setOnClickListener {
-            progressBar = findViewById(R.id.progressBar)
-            viewOverlay = findViewById(R.id.loadingOverlay)
             progressBar.visibility = View.VISIBLE
             viewOverlay.visibility = View.VISIBLE
 
             val title = edtTitle.text.toString()
             val detail = edtDetail.text.toString()
 
-            if(validateFields(title, detail)) {
+            if (validateFields(title, detail)) {
                 lifecycleScope.launch {
-                    saveReport(title, detail, latitude, longitude, typeReport.toString(), currentLocation)
+                    saveReport(title, detail, latitude, longitude, typeReport, currentLocation)
                     progressBar.visibility = View.GONE
                     viewOverlay.visibility = View.GONE
                 }
-            }else {
+            } else {
                 progressBar.visibility = View.GONE
                 viewOverlay.visibility = View.GONE
             }
-
-
         }
-
-        configCloudinary()
-        saveImageEvidence()
-        navigationMenu()
     }
 
     private fun configCloudinary() {
@@ -138,85 +134,97 @@ class NewReportActivity : AppCompatActivity() {
         )
     }
 
-    private fun navigationMenu() {
-        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+    // ✅ Traducción a Enum backend
+    private fun mapReportType(type: String): String {
+        return when (type.lowercase()) {
+            "robo" -> "ROBBERY"
+            "acoso" -> "HARASSMENT"
+            "accidente" -> "ACCIDENT"
+            "zona oscura" -> "DARK_AREA"
+            else -> "OTHER"
+        }
+    }
+    private suspend fun saveReport(
+        title: String,
+        detail: String,
+        latitude: Double,
+        longitude: Double,
+        typeReport: String,
+        currentLocation: String
+    ) {
+        val service = RetrofitClient.getClient(token)
+        val mappedType = mapReportType(typeReport)
 
-        bottomNavigationView.setOnNavigationItemSelectedListener { item ->
-            bottomNavigationView.menu.findItem(R.id.nav_map).setIcon(R.drawable.location_icon)
-            bottomNavigationView.menu.findItem(R.id.nav_report).setIcon(R.drawable.reports_icon)
-            bottomNavigationView.menu.findItem(R.id.nav_shared_location).setIcon(R.drawable.share_location_icon)
-
-            if(item.isChecked) {
-                return@setOnNavigationItemSelectedListener false
-            }
-
-            when (item.itemId) {
-                R.id.nav_map -> {
-                    val intent = Intent(this, MapActivity::class.java)
-                    intent.putExtra("token", token)
-                    startActivity(intent)
-                    true
-                }
-                R.id.nav_report -> {
-                    val intent = Intent(this, ListReportsActivity::class.java)
-                    intent.putExtra("token", token)
-                    startActivity(intent)
-                    true
-                }
-                R.id.nav_shared_location -> {
-                    val intent = Intent(this, ContactsListActivity::class.java)
-                    intent.putExtra("token", token)
-                    startActivity(intent)
-                    true
-                }
-                else -> false
-            }
-
+        // 🧩 Validaciones antes de enviar
+        if (userId == 0) {
+            showIncorrectSignUpDialog("Error: no se encontró el usuario activo. Inicia sesión nuevamente.")
+            Log.e("SaveReport", "userId = 0 (no válido)")
+            return
         }
 
-        bottomNavigationView.menu.findItem(R.id.nav_report).setChecked(true)
-    }
+        if (currentLocation.isBlank() || currentLocation == "No location found") {
+            showIncorrectSignUpDialog("No se pudo obtener la ubicación. Intenta abrir el mapa antes de reportar.")
+            Log.e("SaveReport", "Ubicación vacía o inválida: '$currentLocation'")
+            return
+        }
 
-    private suspend fun saveReport(title: String, detail: String, latitude: Double, longitude: Double, typeReport: String, currentLocation: String) {
-        val service = RetrofitClient.getClient(token)
+        val safeLocation = if (currentLocation.isBlank()) "Unknown location" else currentLocation
 
+        // 📸 Subir imagen a Cloudinary
         val urlImage = uploadImage()
+        if (urlImage.isNullOrEmpty()) {
+            showIncorrectSignUpDialog("Error subiendo la imagen. Intenta nuevamente.")
+            return
+        }
+
         Log.i("URL cloudinary", urlImage.toString())
 
-        val report = ReportSchema(title, detail, typeReport, userId, urlImage, currentLocation)
-        // obtain the id of the report created
-
+        // 📨 Crear objeto del reporte con datos válidos
+        val report = ReportSchema(
+            title = title,
+            description = detail,
+            type = mappedType,
+            userId = userId,
+            imageUrl = urlImage,
+            location = safeLocation,
+            latitude = latitude.toString(),
+            longitude = longitude.toString()
+        )
+        Log.i("REPORT_DEBUG", "userId=$userId, type=$mappedType, location='$safeLocation'")
         service.postReport(report).enqueue(object : Callback<Report> {
             override fun onResponse(call: Call<Report>, response: Response<Report>) {
                 if (response.isSuccessful) {
-                    val report = response.body()
-                    if (report != null) {
-                        Log.d("Report", report.toString())
-                        saveLocation(latitude.toString(), longitude.toString(), report.id)
+                    val createdReport = response.body()
+                    if (createdReport != null) {
+                        Log.d("Report", "Reporte creado correctamente: ${createdReport.id}")
+                        saveLocation(latitude.toString(), longitude.toString(), createdReport.id)
+                    } else {
+                        showIncorrectSignUpDialog("Error: el servidor no devolvió información del reporte.")
                     }
+                } else {
+                    Log.e("ReportError", "Error ${response.code()}: ${response.message()}")
+                    showIncorrectSignUpDialog("Error al enviar el reporte (${response.code()})")
                 }
             }
 
             override fun onFailure(call: Call<Report>, t: Throwable) {
-                Log.e("Error", t.message.toString())
+                Log.e("ReportError", "Fallo en conexión: ${t.message}")
+                showIncorrectSignUpDialog("No se pudo conectar al servidor. Revisa tu conexión e inténtalo nuevamente.")
             }
         })
     }
 
     private fun saveLocation(latitude: String, longitude: String, idReport: Int) {
         val service = RetrofitClient.getClient(token)
-
         val location = LocationSchema(latitude, longitude, idReport)
 
         service.postLocation(location).enqueue(object : Callback<Location> {
             override fun onResponse(call: Call<Location>, response: Response<Location>) {
                 if (response.isSuccessful) {
-                    val location = response.body()
-                    if (location != null) {
-                        Log.d("Location", location.toString())
-                    }
-
+                    Log.d("Location", response.body().toString())
                     showCorrectReportSaved()
+                } else {
+                    showIncorrectSignUpDialog("Error guardando ubicación")
                 }
             }
 
@@ -226,26 +234,11 @@ class NewReportActivity : AppCompatActivity() {
         })
     }
 
-    private fun recoverRecentLocations(): List<LocationModel> {
-        val db = AppDatabase.getDatabase(this)
-        var locations = emptyList<LocationModel>()
-        GlobalScope.launch {
-            locations = db.reportDAO().listLocations()
-        }
-
-        // sort the locations by the most recent
-        locations = locations.sortedByDescending { it.id }
-
-        return locations
-    }
-
     private fun saveImageEvidence() {
         imgMoreEvidence.setOnClickListener {
-            // open the options camera, gallery and file
             requestPermissions()
         }
     }
-
 
     private fun requestPermissions() {
         if (REQUIRED_PERMISSIONS.all {
@@ -258,20 +251,15 @@ class NewReportActivity : AppCompatActivity() {
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 openImageOptions()
             } else {
-
-                if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), REQUEST_CODE_PERMISSIONS)
-                }
-
-
-
                 Toast.makeText(this, "Permissions not granted", Toast.LENGTH_SHORT).show()
             }
         }
@@ -281,7 +269,7 @@ class NewReportActivity : AppCompatActivity() {
         val options = arrayOf("Camera", "Gallery")
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Select Image From")
-        builder.setItems(options) { dialog, which ->
+        builder.setItems(options) { _, which ->
             when (which) {
                 0 -> openCamera()
                 1 -> openGallery()
@@ -302,18 +290,12 @@ class NewReportActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
         if (requestCode == REQUEST_CODE_IMAGE_PICKER && resultCode == Activity.RESULT_OK) {
-            // Caso de la galería
             val imageUri: Uri? = data?.data
-            if (imageUri != null) {
-                showImgPreviewFromUri(imageUri)
-            } else {
-                // Caso de la cámara
-                val imageBitmap = data?.extras?.get("data") as? Bitmap
-                if (imageBitmap != null) {
-                    showImgPreviewFromBitmap(imageBitmap)
-                }
+            val imageBitmap = data?.extras?.get("data") as? Bitmap
+            when {
+                imageUri != null -> showImgPreviewFromUri(imageUri)
+                imageBitmap != null -> showImgPreviewFromBitmap(imageBitmap)
             }
         }
     }
@@ -330,79 +312,79 @@ class NewReportActivity : AppCompatActivity() {
     }
 
     private suspend fun uploadImage(): String? {
-        var url: String? = null
-
         if (!this::imgBitmap.isInitialized) {
             Toast.makeText(this, "No image selected", Toast.LENGTH_SHORT).show()
-            return url
+            return null
         }
 
         val file = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "temp.jpg")
-        val outputStream = FileOutputStream(file)
-        imgBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-        outputStream.flush()
-        outputStream.close()
+        FileOutputStream(file).use {
+            imgBitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+        }
 
-        url = withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             val result = cloudinary.uploader().upload(file, ObjectUtils.emptyMap())
             result["url"].toString()
         }
-
-        return url
     }
 
     private fun validateFields(title: String, detail: String): Boolean {
-        if(title.isEmpty() || detail.isEmpty()) {
+        if (title.isEmpty() || detail.isEmpty()) {
             showIncorrectSignUpDialog("Asegúrate de llenar todos los campos")
             return false
         }
-
-        if(imgEvidence.drawable == null || !this::imgBitmap.isInitialized) {
+        if (imgEvidence.drawable == null || !this::imgBitmap.isInitialized) {
             showIncorrectSignUpDialog("Asegúrate de subir una imagen")
             return false
         }
-
         return true
     }
 
-    private fun showIncorrectSignUpDialog(texto: String){
+    private fun showIncorrectSignUpDialog(texto: String) {
         val dialog = Dialog(this)
-
         dialog.setContentView(R.layout.dialog_incorrect_signup)
-
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.setCancelable(false)
         dialog.setCanceledOnTouchOutside(false)
-
-        val btnContinue = dialog.findViewById<Button>(R.id.btnContinue)
-        val tvMensaje = dialog.findViewById<TextView>(R.id.tvIncorrectSignup)
-
-        tvMensaje.text = texto
-
-        btnContinue.setOnClickListener {
-            dialog.hide()
-        }
-
+        dialog.findViewById<TextView>(R.id.tvIncorrectSignup).text = texto
+        dialog.findViewById<Button>(R.id.btnContinue).setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
-    private fun showCorrectReportSaved(){
+    private fun showCorrectReportSaved() {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_correct_report)
-        // to set a transparent background
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.setCancelable(false)
         dialog.setCanceledOnTouchOutside(false)
-
-        val btnContinue = dialog.findViewById<Button>(R.id.btnContinue)
-
-        btnContinue.setOnClickListener {
-            dialog.hide()
+        dialog.findViewById<Button>(R.id.btnContinue).setOnClickListener {
+            dialog.dismiss()
             val intent = Intent(this@NewReportActivity, MapActivity::class.java)
             intent.putExtra("token", token)
             startActivity(intent)
         }
-
         dialog.show()
+    }
+
+    private fun navigationMenu() {
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNavigationView.setOnNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_map -> {
+                    startActivity(Intent(this, MapActivity::class.java).putExtra("token", token))
+                    true
+                }
+                R.id.nav_report -> {
+                    startActivity(Intent(this, ListReportsActivity::class.java).putExtra("token", token))
+                    true
+                }
+                R.id.nav_shared_location -> {
+                    startActivity(Intent(this, ContactsListActivity::class.java).putExtra("token", token))
+                    true
+                }
+                else -> false
+            }
+        }
+        bottomNavigationView.menu.findItem(R.id.nav_report).isChecked = true
     }
 }

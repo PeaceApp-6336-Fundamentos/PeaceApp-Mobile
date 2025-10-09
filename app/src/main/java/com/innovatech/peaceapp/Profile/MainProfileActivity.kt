@@ -1,6 +1,5 @@
 package com.innovatech.peaceapp.Profile
 
-import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
@@ -36,13 +35,11 @@ class MainProfileActivity : AppCompatActivity() {
     private lateinit var tvName: TextView
     private lateinit var tvEmail: TextView
     private lateinit var tvPhone: TextView
-    private lateinit var tvPassword: TextView
     private lateinit var ivProfileImage: ImageView
 
     private lateinit var btnEditProfile: Button
     private lateinit var btnDeleteAccount: TextView
     private lateinit var llLogout: LinearLayout
-    private lateinit var ivEye: ImageView
 
     private lateinit var token: String
     private lateinit var email: String
@@ -72,13 +69,12 @@ class MainProfileActivity : AppCompatActivity() {
         tvName = findViewById(R.id.txt_user_name)
         tvEmail = findViewById(R.id.txt_user_email)
         tvPhone = findViewById(R.id.txt_user_phone)
-        tvPassword = findViewById(R.id.txt_user_password)
         ivProfileImage = findViewById(R.id.ivProfileImage)
 
         btnEditProfile = findViewById(R.id.btnEditar)
         btnDeleteAccount = findViewById(R.id.tvEliminar)
         llLogout = findViewById(R.id.ll_logout)
-        ivEye = findViewById(R.id.iv_eye)
+
     }
 
     private fun navigationMenu() {
@@ -134,14 +130,13 @@ class MainProfileActivity : AppCompatActivity() {
                         if (userProfile != null) {
 
                             Log.i("andriush", userProfile.name+" "+userProfile.email+" " +
-                                    ""+userProfile.phonenumber+" "+userProfile.password)
+                                    ""+userProfile.phonenumber)
 
                             tvName.text = userProfile.name + " " + userProfile.lastname
                             tvEmail.text = userProfile.email
                             tvPhone.text = userProfile.phonenumber
-                            tvPassword.text = userProfile.password
 
-                            Picasso.get().load(userProfile.profile_image).into(ivProfileImage)
+                            Picasso.get().load(userProfile.profileImage).into(ivProfileImage)
 
                             user = UserProfile(
                                 userProfile.id,
@@ -149,9 +144,8 @@ class MainProfileActivity : AppCompatActivity() {
                                 userProfile.lastname,
                                 userProfile.phonenumber,
                                 userProfile.email,
-                                userProfile.password,
-                                userProfile.user_id,
-                                userProfile.profile_image
+                                userProfile.userId,
+                                userProfile.profileImage
                             )
                         }
                     }
@@ -190,9 +184,6 @@ class MainProfileActivity : AppCompatActivity() {
 //            showDeleteUserDialog()
 //        }
 
-        ivEye.setOnClickListener {
-            changePasswordVisibility()
-        }
     }
 
     private fun showDeleteUserDialog() {
@@ -228,8 +219,8 @@ class MainProfileActivity : AppCompatActivity() {
     private fun deleteUser() {
         val service = RetrofitClient.getClient(token)
 
-        Log.i("MUYBUENAS", user.user_id)
-        service.deleteUser(user.user_id.toLong())
+        Log.i("MUYBUENAS", user.userId)
+        service.deleteUser(user.userId.toLong())
 
         navigateToInitialActivity()
 
@@ -239,16 +230,5 @@ class MainProfileActivity : AppCompatActivity() {
     private fun navigateToInitialActivity() {
         val intent = Intent(this, InitialActivity::class.java)
         startActivity(intent)
-    }
-
-    private fun changePasswordVisibility(){
-        if(tvPassword.inputType == 129){
-            tvPassword.inputType = 1
-            // change the icon
-            ivEye.setImageResource(R.drawable.ic_closed_eye)
-        }else{
-            tvPassword.inputType = 129
-            ivEye.setImageResource(R.drawable.ic_open_eye)
-        }
     }
 }

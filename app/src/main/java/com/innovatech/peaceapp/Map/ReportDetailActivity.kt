@@ -59,7 +59,7 @@ class ReportDetailActivity : AppCompatActivity() {
         val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
         userId = sharedPref.getInt("userId", 0)
 
-        if (userId == report.idUser) btnDeleteReport.visibility = ImageView.VISIBLE
+        if (userId == report.userId) btnDeleteReport.visibility = ImageView.VISIBLE
 
 
         btnSalirReporteDetallado.setOnClickListener {
@@ -118,10 +118,10 @@ class ReportDetailActivity : AppCompatActivity() {
     private fun setReportData() {
         txtTituloReporte.text = report.title
         txtTipoReporte.text = report.type
-        txtUbicacionReporte.text = report.address
+        txtUbicacionReporte.text = report.location
         txtFechaReporte.text = report.createdAt.substring(0,10)
-        txtDescripcionReporte.text = report.detail
-        Picasso.get().load(report.image)
+        txtDescripcionReporte.text = report.description
+        Picasso.get().load(report.imageUrl)
             .resize(300, 300)
             .centerCrop().into(imgReporte)
     }

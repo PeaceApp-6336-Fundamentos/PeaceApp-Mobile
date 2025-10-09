@@ -28,7 +28,7 @@ interface PlaceHolder {
 
     //GET
     ///api/v1/users/{email}
-    @GET("api/v1/users/{email}")
+    @GET("api/v1/users/email/{email}")
     fun getUserByEmail(@Path("email") email: String): Call<UserProfile>
 
     //DELETE

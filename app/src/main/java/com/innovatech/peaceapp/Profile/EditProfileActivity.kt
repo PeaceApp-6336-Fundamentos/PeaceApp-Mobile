@@ -119,7 +119,6 @@ class EditProfileActivity : AppCompatActivity() {
         etSurname = findViewById(R.id.etSurname)
         etPhone = findViewById(R.id.etPhone)
         tvEmail = findViewById(R.id.txt_user_email)
-        tvPassword = findViewById(R.id.txt_user_password)
         ivProfileImage = findViewById(R.id.ivProfile)
         cvCamera = findViewById(R.id.cv_camera)
 
@@ -174,8 +173,7 @@ class EditProfileActivity : AppCompatActivity() {
         etSurname.setText(user.lastname)
         etPhone.setText(user.phonenumber)
         tvEmail.text = user.email
-        tvPassword.text = user.password
-        Picasso.get().load(user.profile_image).into(ivProfileImage)
+        Picasso.get().load(user.profileImage).into(ivProfileImage)
     }
 
     private fun initListeners() {
@@ -219,14 +217,21 @@ class EditProfileActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private suspend fun updateUser(){
+    private suspend fun updateUser() {
         val name = etName.text.toString()
         val surname = etSurname.text.toString()
         val phone = etPhone.text.toString()
         val urlImage = uploadImage()
-        Log.i("URL", urlImage.toString())
+        val email = user.email // ya lo tienes cargado en el perfil
 
-        val editedUser = UserEditSchema(name, surname, phone, urlImage.toString())
+        val editedUser = UserEditSchema(
+            name = name,
+            lastname = surname,
+            email = email,               // ✅ nuevo
+            phonenumber = phone,
+            userId = user.userId,
+            profileImage = urlImage.toString()
+        )
 
         val service = RetrofitClient.getClient(token)
         service.updateUser(user.id, editedUser)
@@ -238,6 +243,8 @@ class EditProfileActivity : AppCompatActivity() {
                             val intent = Intent(this@EditProfileActivity, MainProfileActivity::class.java)
                             startActivity(intent)
                         }
+                    } else {
+                        Log.e("UPDATE_USER", "Error: ${response.errorBody()?.string()}")
                     }
                 }
 
@@ -245,12 +252,11 @@ class EditProfileActivity : AppCompatActivity() {
                     t.printStackTrace()
                 }
             })
-
     }
+
 
     private fun validateFields(): Boolean {
         val phone = etPhone.text.toString()
-        val password = tvPassword.text.toString()
 
         if (etName.text.isEmpty() || etSurname.text.isEmpty() || phone.isEmpty()) {
             showIncorrectEditDialog("Asegúrate de llenar todos los campos")
@@ -264,13 +270,6 @@ class EditProfileActivity : AppCompatActivity() {
 
         if (phone.length != 9) {
             showIncorrectEditDialog("El teléfono debe tener 9 dígitos")
-            return false
-        }
-
-        // Solo validamos la contraseña si el usuario la está editando (no oculta)
-        val passwordRegex = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$")
-        if (!passwordRegex.matches(password)) {
-            showIncorrectEditDialog("La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial")
             return false
         }
 

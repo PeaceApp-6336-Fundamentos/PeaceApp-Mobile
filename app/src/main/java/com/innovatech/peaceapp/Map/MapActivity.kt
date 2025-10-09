@@ -278,7 +278,7 @@ class MapActivity : AppCompatActivity() {
                     Response<UserProfile>) {
                         val userProfile = response.body()
                         if (userProfile != null) {
-                            Picasso.get().load(userProfile.profile_image).into(userPhoto)
+                            Picasso.get().load(userProfile.profileImage).into(userPhoto)
                         }
                     }
 
@@ -485,7 +485,7 @@ class MapActivity : AppCompatActivity() {
                 Log.d("MapActivity", "Locations: $locations") // Log the locations
                 if (locations != null) {
                     for (location in locations) {
-                        if(location.alatitude == 0.0 && location.alongitude == 0.0) continue
+                        if(location.latitude == 0.0 && location.longitude == 0.0) continue
 
                         var typeReport = R.drawable.alert_marker
                         when (reportsLocations[location.idReport]) {
@@ -496,7 +496,7 @@ class MapActivity : AppCompatActivity() {
                             "Otro" -> typeReport = R.drawable.other_marker
                         }
 
-                        addMarker(location.alatitude, location.alongitude, typeReport)
+                        addMarker(location.latitude, location.longitude, typeReport)
                     }
                 }
             }
@@ -729,100 +729,107 @@ class MapActivity : AppCompatActivity() {
         return earthRadius * c
     }
     // Function to check proximity to reports and create alerts if needed
+// ======================= checkProximityToReports =======================
     private fun checkProximityToReports(userLat: Double, userLon: Double) {
-        val radius = 0.5 // Radius in kilometers (0.5km = 500 meters)
+        val radius = 0.5 // km = 500m
         val service = RetrofitClient.getClient(token)
+
+        Log.i("AlertCheck", "📡 Ejecutando checkProximityToReports()...")
 
         service.getLocations().enqueue(object : Callback<List<Beans.Location>> {
             override fun onResponse(call: Call<List<Beans.Location>>, response: Response<List<Beans.Location>>) {
                 val locations = response.body()
                 if (locations != null) {
-                    var nearbyAlertCount = 0 // To count how many alerts are within the radius
+                    Log.i("AlertCheck", "📍 Total de ubicaciones recibidas: ${locations.size}")
 
+                    var nearbyAlertCount = 0
                     for (location in locations) {
-                        if (location.alatitude == 0.0 && location.alongitude == 0.0) continue
+                        if (location.latitude == 0.0 && location.longitude == 0.0) continue
+                        Log.i("AlertCheck", "🧭 Analizando ubicación: $location")
 
-                        // Check if the report was already processed
+                        // Evitar procesar el mismo reporte varias veces
                         if (processedReports.contains(location.idReport)) {
-                            continue // Skip if alert was already created for this report
+                            Log.i("AlertCheck", "🔁 Reporte ${location.idReport} ya procesado, saltando.")
+                            continue
                         }
 
-                        // Calculate the distance to the user
-                        val distance = calculateDistance(userLat, userLon, location.alatitude, location.alongitude)
+                        // Calcular distancia
+                        val distance = calculateDistance(userLat, userLon, location.latitude, location.longitude)
+                        Log.i("AlertCheck", "📏 Distancia a reporte ${location.idReport}: ${(distance * 1000).toInt()}m")
+
                         if (distance <= radius) {
-                            // Increment the count of alerts in proximity
-                            nearbyAlertCount++
-
-                            // Create a new alert for each location within the radius
+                            Log.i("AlertCheck", "✅ Reporte ${location.idReport} dentro de rango, creando alerta...")
                             createNewAlert(location)
-
-                            // Mark this report as processed
                             processedReports.add(location.idReport)
+                            nearbyAlertCount++
                         }
                     }
 
-                    // Only show a popup if more than one alert was detected
+                    Log.i("AlertCheck", "📊 Total de alertas creadas o detectadas en esta pasada: $nearbyAlertCount")
                     if (nearbyAlertCount > 1) {
                         showAlertPopupForMultipleAlerts()
                     }
+                } else {
+                    Log.w("AlertCheck", "⚠️ No se recibieron ubicaciones del backend.")
                 }
             }
 
             override fun onFailure(call: Call<List<Beans.Location>>, t: Throwable) {
-                Log.e("Error", "Failed to fetch locations: ${t.message}")
+                Log.e("AlertCheck", "❌ Error al obtener ubicaciones: ${t.message}")
             }
         })
     }
+    // ======================= createNewAlert =======================
     private fun createNewAlert(location: Beans.Location) {
-        // Retrieve userId from Shared Preferences
         val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
-        val userId = sharedPref.getInt("userId", 0) // Default to 0 if not found
+        val userId = sharedPref.getInt("userId", 0)
 
-// Log the retrieved userId to check if it's correct
-        Log.i("Alert", "Retrieved User ID: $userId")
+        Log.i("AlertCreate", "👤 Retrieved User ID: $userId")
 
         if (userId == 0) {
-            Log.e("Alert", "User ID not found in shared preferences.")
-            return // Abort if userId is not found
+            Log.e("AlertCreate", "⚠️ User ID not found in shared preferences, cancelando creación.")
+            return
         }
 
-        // Fetch the report details based on idReport
         val service = RetrofitClient.getClient(token)
         service.getAllReports().enqueue(object : Callback<List<Report>> {
             override fun onResponse(call: Call<List<Report>>, response: Response<List<Report>>) {
                 val reports = response.body()
-                if (reports != null) {
-                    val report = reports.find { it.id == location.idReport }
-                    if (report != null) {
-                        // Create the AlertSchema object with userId
-                        val alertSchema = AlertSchema(
-                            location = report.address,
-                            type = report.type,
-                            description = report.detail, // Optional description
-                            idUser = userId,  // Use the retrieved userId here
-                            image_url = report.image, // Pass the image URL if available, otherwise set to null
-                            idReport = report.id
-                        )
+                val report = reports?.find { it.id == location.idReport }
 
-                        // Check if an identical alert exists before posting
-                        checkForDuplicateAlert(alertSchema) { exists ->
-                            if (!exists) {
-                                // Post the alert only if it doesn't exist
-                                postAlert(alertSchema)
-                            } else {
-                                Log.i("Alert", "Duplicate alert found, skipping creation.")
-                            }
-                        }
+                if (report == null) {
+                    Log.w("AlertCreate", "⚠️ Reporte no encontrado para loc.idReport=${location.idReport}")
+                    return
+                }
+
+                Log.i("AlertCreate", "🚀 Creando alerta para reporte ID ${report.id} (${report.type})")
+
+                val alertSchema = AlertSchema(
+                    location = report.location,
+                    type = report.type,
+                    description = report.description,
+                    userId = userId,
+                    imageUrl = report.imageUrl,
+                    reportId = report.id
+                )
+
+                Log.i("AlertCreate", "🛰️ Preparando alerta para enviar: $alertSchema")
+
+                checkForDuplicateAlert(alertSchema) { exists ->
+                    if (!exists) {
+                        Log.i("AlertCreate", "📤 Enviando alerta al backend...")
+                        postAlert(alertSchema)
+                    } else {
+                        Log.i("AlertCreate", "⚠️ Alerta duplicada detectada, no se enviará.")
                     }
                 }
             }
 
             override fun onFailure(call: Call<List<Report>>, t: Throwable) {
-                Log.e("Error", "Failed to fetch reports: ${t.message}")
+                Log.e("AlertCreate", "❌ Error al obtener reportes: ${t.message}")
             }
         })
     }
-
 
     // Function to check for duplicate alerts based on the id or alert schema
     private fun checkForDuplicateAlert(alertSchema: AlertSchema, callback: (exists: Boolean) -> Unit) {
@@ -860,43 +867,55 @@ class MapActivity : AppCompatActivity() {
         alertDialog.setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
         alertDialog.show()
     }
-    // Function to post an alert
     private fun postAlert(alertSchema: AlertSchema) {
         val service = RetrofitClient.getClient(token)
 
-        // Debugging: Log the alertSchema before posting it
-        Log.d("AlertSchema", "Posting alert: $alertSchema")
+        // 🔍 Log del objeto antes de enviarlo
+        Log.i("AlertDebug", "📦 Enviando JSON: ${com.google.gson.Gson().toJson(alertSchema)}")
 
         service.postAlert(alertSchema).enqueue(object : Callback<Alert> {
             override fun onResponse(call: Call<Alert>, response: Response<Alert>) {
+                Log.i("AlertDebug", "📡 Código de respuesta: ${response.code()}")
+
                 if (response.isSuccessful) {
-                    Log.i("Alert", "New alert posted successfully.")
+                    Log.i("AlertDebug", "✅ Alerta creada correctamente: ${response.body()}")
                 } else {
-                    Log.e("Alert Error", "Failed to post alert: ${response.errorBody()?.string()}")
+                    try {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e("AlertDebug", "❌ Error del servidor (${response.code()}): $errorBody")
+                    } catch (e: Exception) {
+                        Log.e("AlertDebug", "⚠️ No se pudo leer errorBody: ${e.message}")
+                    }
                 }
             }
 
-
             override fun onFailure(call: Call<Alert>, t: Throwable) {
-                Log.e("Alert Error", "Error posting alert: ${t.message}")
+                Log.e("AlertDebug", "💥 Falló conexión al backend: ${t.message}")
+                t.printStackTrace()
             }
         })
-
     }
     private fun deleteAllAlerts() {
         val service = RetrofitClient.getClient(token)
+        val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
+        val userId = sharedPref.getInt("userId", 0)
 
-        service.deleteAllAlerts().enqueue(object : Callback<Void> {
+        if (userId == 0) {
+            Log.e("MapActivity", "User ID not found, cannot delete alerts.")
+            return
+        }
+
+        service.deleteAlertsByUserId(userId).enqueue(object : Callback<Void> {
             override fun onResponse(call: Call<Void>, response: Response<Void>) {
                 if (response.isSuccessful) {
-                    Log.i("MapActivity", "All alerts deleted successfully.")
+                    Log.i("MapActivity", "✅ All alerts deleted successfully for user $userId.")
                 } else {
-                    Log.e("MapActivity", "Failed to delete alerts: ${response.errorBody()?.string()}")
+                    Log.e("MapActivity", "❌ Failed to delete alerts: ${response.errorBody()?.string()}")
                 }
             }
 
             override fun onFailure(call: Call<Void>, t: Throwable) {
-                Log.e("MapActivity", "Error deleting alerts: ${t.message}")
+                Log.e("MapActivity", "💥 Error deleting alerts: ${t.message}")
             }
         })
     }

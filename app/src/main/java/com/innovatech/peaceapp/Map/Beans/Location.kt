@@ -5,21 +5,21 @@ class Location {
     var createdAt: String
     var updatedAt: String
     var idReport: Int
-    var alongitude: Double
-    var alatitude: Double
+    var longitude: Double
+    var latitude: Double
 
-    constructor(id: Int, createdAt: String, updatedAt: String, idReport: Int, alongitude: String, alatitude: String) {
+    constructor(id: Int, createdAt: String, updatedAt: String, idReport: Int, longitude: String, latitude: String) {
         this.id = id
         this.createdAt = createdAt
         this.updatedAt = updatedAt
         this.idReport = idReport
-        this.alongitude = alongitude.toDouble()
-        this.alatitude = alatitude.toDouble()
+        this.longitude = longitude.toDouble()
+        this.latitude = latitude.toDouble()
     }
 
-    constructor(alatitude: String,  alongitude: String, idReport: String) {
-        this.alatitude = alatitude.toDouble()
-        this.alongitude = alongitude.toDouble()
+    constructor(latitude: String,  longitude: String, idReport: String) {
+        this.latitude = latitude.toDouble()
+        this.longitude = longitude.toDouble()
         this.idReport = idReport.toInt()
         this.id = 0
         this.createdAt = ""

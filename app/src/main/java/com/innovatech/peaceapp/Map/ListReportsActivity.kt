@@ -138,7 +138,7 @@ class ListReportsActivity : AppCompatActivity() {
                                 report.userId,
                                 report.description,
                                 report.title,
-                                report.type,
+                                translateType(report.type),
                                 report.imageUrl,
                                 report.location,
                                 report.latitude,
@@ -180,7 +180,7 @@ class ListReportsActivity : AppCompatActivity() {
                                 report.userId,
                                 report.description,
                                 report.title,
-                                report.type,
+                                translateType(report.type),
                                 report.imageUrl,
                                 report.location,
                                 report.latitude,
@@ -199,6 +199,16 @@ class ListReportsActivity : AppCompatActivity() {
                 Log.e("GET REPORTS", "Reports not obtained")
             }
         })
+    }
+    private fun translateType(type: String?): String {
+        return when (type?.uppercase()) {
+            "ROBBERY" -> "Robo"
+            "ACCIDENT" -> "Accidente"
+            "DARK_AREA" -> "Zona oscura"
+            "HARASSMENT" -> "Acoso"
+            "OTHER" -> "Otro"
+            else -> type ?: ""
+        }
     }
 
     // Function to change the background of the tab when it is UNSELECTED

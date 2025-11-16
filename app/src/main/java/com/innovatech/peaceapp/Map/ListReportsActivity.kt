@@ -118,17 +118,31 @@ class ListReportsActivity : AppCompatActivity() {
 
 
     private fun obtainAllReports() {
+        val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
+        val userRole = sharedPref.getString("userRole", "")
+
         val service = RetrofitClient.getClient(token)
 
-        service.getAllReports().enqueue(object: Callback<List<Report>> {
+        service.getAllReports().enqueue(object : Callback<List<Report>> {
             override fun onResponse(call: Call<List<Report>>, response: Response<List<Report>>) {
                 val reports = response.body()
                 val listReports = mutableListOf<Report>()
 
-                if(reports != null) {
-                    for(report in reports) {
+                if (reports != null) {
 
-                        if(report.imageUrl == null) report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
+                    val filteredReports =
+                        if (userRole == "ROLE_ADMIN") {
+
+                            reports
+                        } else {
+
+                            reports.filter { it.state == "APPROVED" }
+                        }
+
+                    for (report in filteredReports) {
+
+                        if (report.imageUrl == null)
+                            report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
 
                         listReports.add(
                             Report(
@@ -142,7 +156,9 @@ class ListReportsActivity : AppCompatActivity() {
                                 report.imageUrl,
                                 report.location,
                                 report.latitude,
-                                report.longitude
+                                report.longitude,
+                                report.state,
+                                report.rejectionReason
                             )
                         )
                     }
@@ -153,24 +169,31 @@ class ListReportsActivity : AppCompatActivity() {
                 }
             }
 
-            override fun onFailure(p0: Call<List<Report>>, p1: Throwable) {
+            override fun onFailure(call: Call<List<Report>>, t: Throwable) {
                 Log.e("GET REPORTS", "Reports not obtained")
             }
         })
     }
-
     private fun obtainMyReports() {
+        val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
+        val userRole = sharedPref.getString("userRole", "")
+
         val service = RetrofitClient.getClient(token)
 
-        service.getMyReports(userId).enqueue(object: Callback<List<Report>> {
+        service.getAllReports().enqueue(object : Callback<List<Report>> {
             override fun onResponse(call: Call<List<Report>>, response: Response<List<Report>>) {
                 val reports = response.body()
                 val listReports = mutableListOf<Report>()
 
-                if(reports != null) {
-                    for(report in reports) {
+                if (reports != null) {
 
-                        if(report.imageUrl == null) report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
+                    // SOLO REPORTES CREADOS POR EL USUARIO
+                    val myReports = reports.filter { it.userId == userId }
+
+                    for (report in myReports) {
+
+                        if (report.imageUrl == null)
+                            report.imageUrl = "https://res.cloudinary.com/dqawjz3ih/image/upload/v1728969083/image_default_eqfpgm.png"
 
                         listReports.add(
                             Report(
@@ -184,7 +207,9 @@ class ListReportsActivity : AppCompatActivity() {
                                 report.imageUrl,
                                 report.location,
                                 report.latitude,
-                                report.longitude
+                                report.longitude,
+                                report.state,
+                                report.rejectionReason
                             )
                         )
                     }
@@ -195,11 +220,12 @@ class ListReportsActivity : AppCompatActivity() {
                 }
             }
 
-            override fun onFailure(p0: Call<List<Report>>, p1: Throwable) {
+            override fun onFailure(call: Call<List<Report>>, t: Throwable) {
                 Log.e("GET REPORTS", "Reports not obtained")
             }
         })
     }
+
     private fun translateType(type: String?): String {
         return when (type?.uppercase()) {
             "ROBBERY" -> "Robo"

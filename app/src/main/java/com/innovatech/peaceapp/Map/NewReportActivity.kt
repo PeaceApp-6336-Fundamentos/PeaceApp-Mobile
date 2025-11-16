@@ -1,7 +1,6 @@
 package com.innovatech.peaceapp.Map
 
-import Beans.Location
-import Beans.LocationSchema
+import ReportSchema
 import android.app.Activity
 import android.app.Dialog
 import android.content.Intent
@@ -27,7 +26,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.innovatech.peaceapp.DB.AppDatabase
 import com.innovatech.peaceapp.DB.Entities.LocationModel
 import com.innovatech.peaceapp.Map.Beans.Report
-import com.innovatech.peaceapp.Map.Beans.ReportSchema
 import com.innovatech.peaceapp.Map.Models.RetrofitClient
 import com.innovatech.peaceapp.R
 import com.innovatech.peaceapp.ShareLocation.ContactsListActivity
@@ -197,7 +195,7 @@ class NewReportActivity : AppCompatActivity() {
                     val createdReport = response.body()
                     if (createdReport != null) {
                         Log.d("Report", "Reporte creado correctamente: ${createdReport.id}")
-                        saveLocation(latitude.toString(), longitude.toString(), createdReport.id)
+                        showCorrectReportSaved()
                     } else {
                         showIncorrectSignUpDialog("Error: el servidor no devolvió información del reporte.")
                     }
@@ -210,26 +208,6 @@ class NewReportActivity : AppCompatActivity() {
             override fun onFailure(call: Call<Report>, t: Throwable) {
                 Log.e("ReportError", "Fallo en conexión: ${t.message}")
                 showIncorrectSignUpDialog("No se pudo conectar al servidor. Revisa tu conexión e inténtalo nuevamente.")
-            }
-        })
-    }
-
-    private fun saveLocation(latitude: String, longitude: String, idReport: Int) {
-        val service = RetrofitClient.getClient(token)
-        val location = LocationSchema(latitude, longitude, idReport)
-
-        service.postLocation(location).enqueue(object : Callback<Location> {
-            override fun onResponse(call: Call<Location>, response: Response<Location>) {
-                if (response.isSuccessful) {
-                    Log.d("Location", response.body().toString())
-                    showCorrectReportSaved()
-                } else {
-                    showIncorrectSignUpDialog("Error guardando ubicación")
-                }
-            }
-
-            override fun onFailure(call: Call<Location>, t: Throwable) {
-                Log.e("Error", t.message.toString())
             }
         })
     }

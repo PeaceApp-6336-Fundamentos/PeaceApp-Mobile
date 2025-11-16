@@ -131,6 +131,7 @@ class SignInActivity : AppCompatActivity() {
                         val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
                         with(sharedPref.edit()) {
                             putInt("userId", user.id)
+                            putString("userRole",user.role)
                             apply()
                         }
 

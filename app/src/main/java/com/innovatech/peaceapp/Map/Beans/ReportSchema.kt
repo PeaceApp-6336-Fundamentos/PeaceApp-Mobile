@@ -1,5 +1,3 @@
-package com.innovatech.peaceapp.Map.Beans
-
 data class ReportSchema(
     var title: String,
     var description: String,
@@ -8,5 +6,7 @@ data class ReportSchema(
     var imageUrl: String?,
     var location: String,
     var latitude: String,
-    var longitude: String
+    var longitude: String,
+    var state: String = "PENDING",
+    var rejectionReason: String? = ""
 )

@@ -88,12 +88,10 @@ class SignUpActivity : AppCompatActivity() {
     private fun saveUserCredentials(){
         val service = RetrofitClient.placeHolder
 
-        var roles = listOf("ROLE_USER")
 
         val user = UserSchema(
             edtEmail.text.toString(),
-            edtPassword.text.toString(),
-            roles)
+            edtPassword.text.toString())
 
         service.signUp(user).enqueue(object : Callback<User> {
             override fun onResponse(p0: Call<User>, response: Response<User>) {
@@ -123,6 +121,7 @@ class SignUpActivity : AppCompatActivity() {
                         val sharedPref = getSharedPreferences("GlobalPrefs", MODE_PRIVATE)
                         with(sharedPref.edit()) {
                             putInt("userId", user.id)
+                            putString("userRole",user.role)
                             apply()
                         }
 

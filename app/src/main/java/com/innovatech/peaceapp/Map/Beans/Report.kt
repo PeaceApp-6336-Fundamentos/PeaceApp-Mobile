@@ -13,5 +13,7 @@ data class Report(
     var imageUrl: String?,
     var location: String,
     val latitude: String,
-    val longitude: String
+    val longitude: String,
+    var state: String,
+    var rejectionReason: String?
 ) : Serializable

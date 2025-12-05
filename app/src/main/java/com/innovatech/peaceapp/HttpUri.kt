@@ -1,5 +1,5 @@
 package com.innovatech.peaceapp
 
 object HttpUri {
-    const val url: String = "http://peaceapp.duckdns.org/"
+    const val url: String = "https://peaceapp.duckdns.org/"
 }
